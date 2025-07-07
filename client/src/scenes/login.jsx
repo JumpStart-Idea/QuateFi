@@ -1,5 +1,5 @@
-import React, { useState, useContext } from "react";
-import { Box, Button, TextField, Typography, Paper, Avatar, IconButton, useTheme, Tooltip, CircularProgress } from "@mui/material";
+import React, { useState, useContext, useEffect } from "react";
+import { Box, Button, TextField, Typography, Paper, Avatar, IconButton, useTheme, Tooltip, CircularProgress, Alert, InputAdornment } from "@mui/material";
 import { useLoginMutation } from "state/api";
 import { useDispatch, useSelector } from "react-redux";
 import { login, setMode } from "state";
@@ -9,9 +9,18 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
+import EmailIcon from '@mui/icons-material/Email';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import { validateEmail, validatePassword, isFormValid } from "../utils/validation";
 
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
+  const [errors, setErrors] = useState({ email: "", password: "" });
+  const [touched, setTouched] = useState({ email: false, password: false });
+  const [showPassword, setShowPassword] = useState(false);
   const [loginApi] = useLoginMutation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -20,12 +29,57 @@ const Login = () => {
   const theme = useTheme();
   const mode = theme.palette.mode;
 
+
+
+  // Real-time validation
+  useEffect(() => {
+    if (touched.email) {
+      const emailError = validateEmail(form.email);
+      setErrors(prev => ({ ...prev, email: emailError }));
+    }
+  }, [form.email, touched.email]);
+
+  useEffect(() => {
+    if (touched.password) {
+      const passwordError = validatePassword(form.password);
+      setErrors(prev => ({ ...prev, password: passwordError }));
+    }
+  }, [form.password, touched.password]);
+
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+    
+    // Mark field as touched when user starts typing
+    if (!touched[name]) {
+      setTouched(prev => ({ ...prev, [name]: true }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+  };
+
+  const checkFormValid = () => {
+    return !errors.email && !errors.password && form.email && form.password;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate all fields on submit
+    const emailError = validateEmail(form.email);
+    const passwordError = validatePassword(form.password);
+    
+    setErrors({ email: emailError, password: passwordError });
+    setTouched({ email: true, password: true });
+    
+    if (emailError || passwordError) {
+      showNotification("Please fix the validation errors", "error");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await loginApi(form);
@@ -89,11 +143,117 @@ const Login = () => {
           </Avatar>
           <Typography variant="h4" mb={1} fontWeight={700} color="primary.main" letterSpacing={1.5}>Sign In</Typography>
           <Typography variant="body2" mb={2} color="text.secondary">Welcome back! Please enter your credentials.</Typography>
+          
           <form onSubmit={handleSubmit} style={{ width: '100%' }} autoComplete="off">
-            <TextField label="Email" name="email" value={form.email} onChange={handleChange} fullWidth margin="normal" required autoFocus sx={{ borderRadius: 2, background: theme.palette.background.paper, transition: 'box-shadow 0.2s' }} />
-            <TextField label="Password" name="password" value={form.password} onChange={handleChange} type="password" fullWidth margin="normal" required sx={{ borderRadius: 2, background: theme.palette.background.paper, transition: 'box-shadow 0.2s' }} />
-            <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2, py: 1.5, fontWeight: 600, fontSize: '1.1rem', borderRadius: 2, letterSpacing: 1, boxShadow: '0 2px 8px 0 rgba(102,126,234,0.15)' }} disabled={loading}>
-              {loading ? <CircularProgress size={24} color="inherit" /> : "Login"}
+            <TextField 
+              label=""
+              placeholder="Email"
+              name="email" 
+              value={form.email} 
+              onChange={handleChange}
+              onBlur={handleBlur}
+              fullWidth 
+              margin="normal" 
+              required 
+              autoFocus 
+              type="email"
+              error={touched.email && !!errors.email}
+              helperText={touched.email && errors.email}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <EmailIcon color={touched.email && !errors.email && form.email ? "success" : "action"} />
+                  </InputAdornment>
+                ),
+                endAdornment: touched.email && (
+                  <InputAdornment position="end">
+                    {!errors.email && form.email ? (
+                      <CheckCircleIcon color="success" />
+                    ) : errors.email ? (
+                      <ErrorIcon color="error" />
+                    ) : null}
+                  </InputAdornment>
+                )
+              }}
+              sx={{ 
+                borderRadius: 2, 
+                background: theme.palette.background.paper, 
+                transition: 'box-shadow 0.2s',
+                '& .MuiOutlinedInput-root': {
+                  '&.Mui-focused fieldset': {
+                    borderColor: errors.email ? 'error.main' : 'primary.main',
+                  },
+                }
+              }} 
+            />
+            
+            <TextField 
+              label=""
+              placeholder="Password"
+              name="password" 
+              value={form.password} 
+              onChange={handleChange}
+              onBlur={handleBlur}
+              type={showPassword ? "text" : "password"} 
+              fullWidth 
+              margin="normal" 
+              required 
+              error={touched.password && !!errors.password}
+              helperText={touched.password && errors.password}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockOutlinedIcon color={touched.password && !errors.password && form.password ? "success" : "action"} />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </IconButton>
+                    {touched.password && (
+                      !errors.password && form.password ? (
+                        <CheckCircleIcon color="success" />
+                      ) : errors.password ? (
+                        <ErrorIcon color="error" />
+                      ) : null
+                    )}
+                  </InputAdornment>
+                )
+              }}
+              sx={{ 
+                borderRadius: 2, 
+                background: theme.palette.background.paper, 
+                transition: 'box-shadow 0.2s',
+                '& .MuiOutlinedInput-root': {
+                  '&.Mui-focused fieldset': {
+                    borderColor: errors.password ? 'error.main' : 'primary.main',
+                  },
+                }
+              }} 
+            />
+            
+            <Button 
+              type="submit" 
+              variant="contained" 
+              color="primary" 
+              fullWidth 
+              disabled={loading || !checkFormValid()}
+              sx={{ 
+                mt: 2, 
+                py: 1.5, 
+                fontWeight: 600, 
+                fontSize: '1.1rem', 
+                borderRadius: 2, 
+                letterSpacing: 1, 
+                boxShadow: '0 2px 8px 0 rgba(102,126,234,0.15)',
+                opacity: checkFormValid() ? 1 : 0.6
+              }} 
+            >
+              {loading ? <CircularProgress size={24} color="inherit" /> : "Sign in"}
             </Button>
           </form>
         </Paper>
