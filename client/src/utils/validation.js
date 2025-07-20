@@ -173,6 +173,99 @@ export const validatePositiveNumber = (value, fieldName) => {
 };
 
 /**
+ * Validates price field
+ * @param {string} value - Price value to validate
+ * @returns {string} - Error message or empty string if valid
+ */
+export const validatePrice = (value) => {
+  if (!value) return "Price is required";
+  
+  const numericError = validateNumeric(value, "Price");
+  if (numericError) return numericError;
+  
+  const price = parseFloat(value);
+  if (price <= 0) return "Price must be greater than 0";
+  if (price > 999999.99) return "Price is too high (maximum $999,999.99)";
+  
+  return "";
+};
+
+/**
+ * Validates rating field
+ * @param {string} value - Rating value to validate
+ * @returns {string} - Error message or empty string if valid
+ */
+export const validateRating = (value) => {
+  if (!value) return "Rating is required";
+  
+  const numericError = validateNumeric(value, "Rating");
+  if (numericError) return numericError;
+  
+  const rating = parseFloat(value);
+  if (rating < 0) return "Rating cannot be negative";
+  if (rating > 5) return "Rating cannot exceed 5";
+  
+  return "";
+};
+
+/**
+ * Validates supply field
+ * @param {string} value - Supply value to validate
+ * @returns {string} - Error message or empty string if valid
+ */
+export const validateSupply = (value) => {
+  if (!value) return "Supply is required";
+  
+  const numericError = validateNumeric(value, "Supply");
+  if (numericError) return numericError;
+  
+  const supply = parseInt(value, 10);
+  if (supply < 0) return "Supply cannot be negative";
+  if (supply > 999999) return "Supply is too high (maximum 999,999)";
+  
+  return "";
+};
+
+/**
+ * Validates product name
+ * @param {string} value - Product name to validate
+ * @returns {string} - Error message or empty string if valid
+ */
+export const validateProductName = (value) => {
+  if (!value) return "Product name is required";
+  if (value.length < 2) return "Product name must be at least 2 characters";
+  if (value.length > 100) return "Product name is too long (maximum 100 characters)";
+  
+  return "";
+};
+
+/**
+ * Validates product description
+ * @param {string} value - Product description to validate
+ * @returns {string} - Error message or empty string if valid
+ */
+export const validateProductDescription = (value) => {
+  if (!value) return "Description is required";
+  if (value.length < 10) return "Description must be at least 10 characters";
+  if (value.length > 500) return "Description is too long (maximum 500 characters)";
+  
+  return "";
+};
+
+/**
+ * Validates product category
+ * @param {string} value - Product category to validate
+ * @returns {string} - Error message or empty string if valid
+ */
+export const validateProductCategory = (value) => {
+  if (!value) return "Category is required";
+  if (value.length < 2) return "Category must be at least 2 characters";
+  if (value.length > 50) return "Category is too long (maximum 50 characters)";
+  
+  return "";
+};
+
+/**
  * Validates form object with validation rules
  * @param {object} formData - Form data object
  * @param {object} validationRules - Object with field names as keys and validation functions as values
