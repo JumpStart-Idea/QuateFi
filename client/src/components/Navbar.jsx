@@ -1,39 +1,67 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LightModeOutlined,
   DarkModeOutlined,
   Menu as MenuIcon,
-  Search,
-  SettingsOutlined,
   ArrowDropDownOutlined,
 } from "@mui/icons-material";
 import FlexBetween from "components/FlexBetween";
 import { useDispatch } from "react-redux";
 import { setMode, logout } from "state";
 import profileImage from "assets/profile.jpeg";
+import settingsIcon from "assets/settings-icon.png";
 import {
   AppBar,
   Button,
   Box,
   Typography,
   IconButton,
-  InputBase,
   Toolbar,
   Menu,
   MenuItem,
   useTheme,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Navbar = ({ user, isSidebarOpen, setIsSidebarOpen }) => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [anchorEl, setAnchorEl] = useState(null);
   const isOpen = Boolean(anchorEl);
   const handleClick = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
+
+  // Function to get page title based on current route
+  const getPageTitle = (pathname) => {
+    const path = pathname.split('/')[1]; // Get the first part after /
+    
+    const titleMap = {
+      '': 'Dashboard',
+      'dashboard': 'Dashboard',
+      'products': 'Products',
+      'customers': 'Customers',
+      'transactions': 'Transactions',
+      'geography': 'Geography',
+      'overview': 'Overview',
+      'daily': 'Daily',
+      'monthly': 'Monthly',
+      'breakdown': 'Breakdown',
+      'admin': 'Admin',
+      'performance': 'Performance',
+      'settings': 'Settings',
+    };
+    
+    return titleMap[path] || 'Dashboard';
+  };
+
+  // Update document title when route changes
+  useEffect(() => {
+    const pageTitle = getPageTitle(location.pathname);
+    document.title = `${pageTitle}`;
+  }, [location.pathname]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -41,6 +69,8 @@ const Navbar = ({ user, isSidebarOpen, setIsSidebarOpen }) => {
     handleClose();
     navigate("/login");
   };
+
+  const currentPageTitle = getPageTitle(location.pathname);
 
   return (
     <AppBar
@@ -56,18 +86,12 @@ const Navbar = ({ user, isSidebarOpen, setIsSidebarOpen }) => {
           <IconButton onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
             <MenuIcon />
           </IconButton>
-          <FlexBetween
-            backgroundColor={theme.palette.background.alt}
-            borderRadius="9px"
-            gap="3rem"
-            p="0.1rem 1.5rem"
-          >
-            <InputBase placeholder="Search..." />
-            <IconButton>
-              <Search />
-            </IconButton>
-          </FlexBetween>
+          <Typography variant="h4" fontWeight="bold" color={theme.palette.secondary[300]}>
+            {currentPageTitle}
+          </Typography>
         </FlexBetween>
+
+       
 
         {/* RIGHT SIDE */}
         <FlexBetween gap="1.5rem">
@@ -79,8 +103,23 @@ const Navbar = ({ user, isSidebarOpen, setIsSidebarOpen }) => {
               <LightModeOutlined sx={{ fontSize: "25px" }} />
             )}
           </IconButton>
-          <IconButton onClick={() => navigate("/settings")}>
-            <SettingsOutlined sx={{ fontSize: "25px" }} />
+          <IconButton 
+            onClick={() => navigate("/settings")}
+            sx={{
+              '& img': {
+                filter: theme.palette.mode === 'dark' ? 'invert(1)' : 'invert(0)',
+                width: '25px',
+                height: '25px',
+                transition: 'filter 0.3s ease',
+              },
+              '&:hover': {
+                '& img': {
+                  opacity: 0.8,
+                }
+              }
+            }}
+          >
+            <img src={settingsIcon} alt="Settings" />
           </IconButton>
           
 
@@ -104,17 +143,27 @@ const Navbar = ({ user, isSidebarOpen, setIsSidebarOpen }) => {
                 borderRadius="50%"
                 sx={{ objectFit: "cover" }}
               />
-              <Box textAlign="left">
+              <Box textAlign="left" sx={{ maxWidth: '150px', overflow: 'hidden' }}>
                 <Typography
                   fontWeight="bold"
                   fontSize="0.85rem"
-                  sx={{ color: theme.palette.secondary[100] }}
+                  sx={{ 
+                    color: theme.palette.secondary[100],
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
                 >
                   {user.name}
                 </Typography>
                 <Typography
                   fontSize="0.75rem"
-                  sx={{ color: theme.palette.secondary[200] }}
+                  sx={{ 
+                    color: theme.palette.secondary[200],
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
                 >
                   {user.occupation}
                 </Typography>

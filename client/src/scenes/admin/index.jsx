@@ -1,5 +1,7 @@
-import React from "react";
-import { Box, useTheme, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem } from "@mui/material";
+import React, { useState, useEffect, useMemo } from "react";
+import { Box, useTheme, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, InputAdornment } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import { useMediaQuery } from "@mui/material";
 import { useGetAdminsQuery, useCreateAdminMutation, useUpdateAdminMutation, useDeleteAdminMutation } from "state/api";
 import { DataGrid } from "@mui/x-data-grid";
 import Header from "components/Header";
@@ -14,7 +16,10 @@ import { useDispatch, useSelector } from "react-redux";
 
 const Admin = () => {
   const theme = useTheme();
-  const { data, isLoading } = useGetAdminsQuery();
+  const { data: allAdmins, isLoading } = useGetAdminsQuery();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const isNonMobile = useMediaQuery("(min-width: 1000px)");
   const countryOptions = geoData.features.map(f => ({ code: f.id, name: f.properties.name }));
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState({
@@ -59,6 +64,8 @@ const Admin = () => {
       field: "name",
       headerName: "Name",
       flex: 0.5,
+      headerClassName: 'cell-header',
+      cellClassName: 'cell-ellipsis',
     },
     {
       field: "email",
@@ -82,6 +89,9 @@ const Admin = () => {
       field: "occupation",
       headerName: "Occupation",
       flex: 1,
+      headerClassName: 'cell-header',
+      cellClassName: 'cell-ellipsis',
+      valueFormatter: (params) => params.value || '-',
     },
     {
       field: "role",
@@ -194,23 +204,97 @@ const Admin = () => {
     editForm.occupation === originalEditForm.occupation &&
     editForm.phoneNumber === originalEditForm.phoneNumber;
 
+  // Handle search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput.trim().toLowerCase());
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Filter admins based on search term
+  const filteredAdmins = useMemo(() => {
+    if (!allAdmins) return [];
+    if (!searchTerm) return allAdmins;
+    
+    return allAdmins.filter(admin => {
+      return (
+        (admin.name?.toLowerCase() || '').includes(searchTerm) ||
+        (admin.email?.toLowerCase() || '').includes(searchTerm) ||
+        (admin.phoneNumber?.toLowerCase() || '').includes(searchTerm) ||
+        (admin.country?.toLowerCase() || '').includes(searchTerm) ||
+        (admin.occupation?.toLowerCase() || '').includes(searchTerm) ||
+        (admin.role?.toLowerCase() || '').includes(searchTerm) ||
+        (admin._id?.toLowerCase() || '').includes(searchTerm)
+      );
+    });
+  }, [allAdmins, searchTerm]);
+
   return (
     <Box m="1.5rem 2.5rem">
-      <FlexBetween mb={2}>
+      <FlexBetween mb={2} flexDirection={{ xs: 'column', md: 'row' }} gap={2}>
         <Header title="ADMINS" subtitle="Managing admins and list of admins" />
-        <Button variant="contained" color="primary" onClick={() => setOpen(true)}>
-          Create Admin
-        </Button>
+        <Box display="flex" gap={2} width={{ xs: '100%', md: 'auto' }}>
+          <Box flex={1} minWidth={{ xs: '100%', md: '300px' }}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              size="small"
+              placeholder="Search admins..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: theme.palette.background.alt,
+                  borderRadius: '9px',
+                },
+                '& .MuiOutlinedInput-input': {
+                  padding: '10px 14px',
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Box>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => setOpen(true)}
+            sx={{ 
+              borderRadius: 2, 
+              fontWeight: 600, 
+              textTransform: 'none',
+              whiteSpace: 'nowrap',
+              px: 3,
+              py: 1
+            }}
+          >
+            Add New Admin
+          </Button>
+        </Box>
       </FlexBetween>
       <Box
         mt="40px"
         height="75vh"
         sx={{
+          overflow: 'hidden',
+          width: '100%',
           "& .MuiDataGrid-root": {
             border: "none",
+            overflow: 'hidden',
           },
           "& .MuiDataGrid-cell": {
             borderBottom: "none",
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            padding: '0 16px',
           },
           "& .MuiDataGrid-columnHeaders": {
             backgroundColor: theme.palette.background.alt,
@@ -219,6 +303,7 @@ const Admin = () => {
           },
           "& .MuiDataGrid-virtualScroller": {
             backgroundColor: theme.palette.primary.light,
+            overflowX: 'hidden',
           },
           "& .MuiDataGrid-footerContainer": {
             backgroundColor: theme.palette.background.alt,
@@ -228,12 +313,19 @@ const Admin = () => {
           "& .MuiDataGrid-toolbarContainer .MuiButton-text": {
             color: `${theme.palette.secondary[200]} !important`,
           },
+          "& .MuiDataGrid-row": {
+            maxWidth: '100% !important',
+          },
+          "& .MuiDataGrid-cell--textLeft": {
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          },
         }}
       >
         <DataGrid
-          loading={isLoading || !data}
+          loading={isLoading || !allAdmins}
           getRowId={(row) => row._id}
-          rows={data || []}
+          rows={filteredAdmins || []}
           columns={columns}
           components={{
             ColumnMenu: CustomColumnMenu,

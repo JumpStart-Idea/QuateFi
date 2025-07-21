@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, useTheme, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, InputAdornment } from "@mui/material";
+import { Box, useTheme, useMediaQuery, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, InputAdornment } from "@mui/material";
 import { useGetCustomersQuery, useCreateCustomerMutation, useUpdateCustomerMutation, useDeleteCustomerMutation } from "state/api";
 import Header from "components/Header";
 import { DataGrid } from "@mui/x-data-grid";
@@ -13,9 +13,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { validateEmail, validatePassword, validateName, validatePhone, validateRequired } from "../../utils/validation";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import Search from '@mui/icons-material/Search';
 
 const Customers = () => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { data, isLoading } = useGetCustomersQuery();
   const [createCustomer] = useCreateCustomerMutation();
   const [updateCustomer] = useUpdateCustomerMutation();
@@ -87,8 +89,33 @@ const Customers = () => {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState("");
   const [deleteName, setDeleteName] = React.useState("");
+  const [searchTerm, setSearchTerm] = React.useState("");
 
   const countryOptions = geoData.features.map(f => ({ code: f.id, name: f.properties.name }));
+
+  // Filter customers based on search term
+  const filteredCustomers = data ? data.filter(customer => {
+    if (!searchTerm) return true; // Show all customers if search is empty
+    
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Safely get string values with null checks
+    const name = customer.name ? customer.name.toLowerCase() : '';
+    const email = customer.email ? customer.email.toLowerCase() : '';
+    const phoneNumber = customer.phoneNumber ? customer.phoneNumber : '';
+    const country = customer.country ? customer.country.toLowerCase() : '';
+    const occupation = customer.occupation ? customer.occupation.toLowerCase() : '';
+    const role = customer.role ? customer.role.toLowerCase() : '';
+    
+    return (
+      name.includes(searchLower) ||
+      email.includes(searchLower) ||
+      phoneNumber.includes(searchTerm) ||
+      country.includes(searchLower) ||
+      occupation.includes(searchLower) ||
+      role.includes(searchLower)
+    );
+  }) : [];
 
   // Real-time validation for create form
   useEffect(() => {
@@ -463,11 +490,42 @@ const Customers = () => {
 
   return (
     <Box m="1.5rem 2.5rem">
-      <FlexBetween mb={2}>
+      <FlexBetween mb={2} flexWrap="wrap" gap={2}>
         <Header title="CUSTOMERS" subtitle="List of Customers" />
-        <Button variant="contained" color="primary" onClick={() => setOpen(true)}>
-          Create Customer
-        </Button>
+        <Box display="flex" gap={2} width={useMediaQuery(theme.breakpoints.down('sm')) ? '100%' : 'auto'}>
+          <TextField
+            variant="outlined"
+            size="small"
+            placeholder="Search customers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{
+              width: isMobile ? '100%' : '300px',
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.background.alt,
+                borderRadius: '9px',
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={() => setOpen(true)}
+            sx={{
+              whiteSpace: 'nowrap',
+              minWidth: 'fit-content',
+            }}
+          >
+            Create Customer
+          </Button>
+        </Box>
       </FlexBetween>
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle>Create Customer</DialogTitle>
@@ -850,8 +908,19 @@ const Customers = () => {
         <DataGrid
           loading={isLoading || !data}
           getRowId={(row) => row._id}
-          rows={data || []}
+          rows={searchTerm ? filteredCustomers : (data || [])}
           columns={columns}
+          pageSize={10}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          disableSelectionOnClick
+          sx={{
+            '& .MuiDataGrid-cell:focus': {
+              outline: 'none',
+            },
+            '& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-cell:focus': {
+              outline: 'none',
+            },
+          }}
         />
       </Box>
     </Box>

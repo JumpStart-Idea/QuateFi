@@ -10,7 +10,7 @@ import {
   Rating,
   useTheme,
   useMediaQuery,
-  Dialog,
+  Dialog, 
   DialogTitle,
   DialogContent,
   DialogActions,
@@ -26,6 +26,7 @@ import { NotificationContext } from "../../App";
 import { validateProductName, validatePrice, validateProductDescription, validateProductCategory, validateRating, validateSupply } from "../../utils/validation";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import Search from '@mui/icons-material/Search';
 
 const Product = ({
   _id,
@@ -121,6 +122,7 @@ const Product = ({
 };
 
 const Products = () => {
+  const theme = useTheme();
   const { data, isLoading } = useGetProductsQuery();
   const [createProduct] = useCreateProductMutation();
   const [updateProduct] = useUpdateProductMutation();
@@ -182,6 +184,7 @@ const Products = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteId, setDeleteId] = useState("");
   const [deleteName, setDeleteName] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const showNotification = useContext(NotificationContext);
 
   // Real-time validation for create form
@@ -473,13 +476,68 @@ const Products = () => {
     }
   };
 
+  // Filter products based on search term
+  const filteredProducts = data ? data.filter(product => {
+    if (!searchTerm) return true; // Show all products if search is empty
+    
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Safely get string values with null checks
+    const name = product.name ? product.name.toLowerCase() : '';
+    const description = product.description ? product.description.toLowerCase() : '';
+    const category = product.category ? product.category.toLowerCase() : '';
+    const price = product.price ? product.price.toString() : '';
+    const rating = product.rating ? product.rating.toString() : '';
+    const supply = product.supply ? product.supply.toString() : '';
+    
+    return (
+      name.includes(searchLower) ||
+      description.includes(searchLower) ||
+      category.includes(searchLower) ||
+      price.includes(searchTerm) ||
+      rating.includes(searchTerm) ||
+      supply.includes(searchTerm)
+    );
+  }) : [];
+
   return (
     <Box m="1.5rem 2.5rem">
-      <FlexBetween mb={2}>
+      <FlexBetween mb={2} flexWrap="wrap" gap={2}>
         <Header title="PRODUCTS" subtitle="See your list of products." />
-        <Button variant="contained" color="primary" onClick={() => setOpen(true)}>
-          Create Product
-        </Button>
+        <Box display="flex" gap={2} width={isNonMobile ? 'auto' : '100%'}>
+          <TextField
+            variant="outlined"
+            size="small"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{
+              width: isNonMobile ? '300px' : '100%',
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.background.alt,
+                borderRadius: '9px',
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={() => setOpen(true)}
+            sx={{
+              whiteSpace: 'nowrap',
+              minWidth: 'fit-content',
+            }}
+          >
+            Create Product
+          </Button>
+        </Box>
       </FlexBetween>
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle>Create Product</DialogTitle>
@@ -783,8 +841,14 @@ const Products = () => {
             "& > div": { gridColumn: isNonMobile ? undefined : "span 4" },
           }}
         >
-          {data.map(
-            ({
+          {filteredProducts.length === 0 ? (
+            <Box gridColumn="1 / -1" textAlign="center" py={4}>
+              <Typography variant="h6" color="textSecondary">
+                {searchTerm ? 'No products match your search.' : 'No products found.'}
+              </Typography>
+            </Box>
+          ) : (
+            filteredProducts.map(({
               _id,
               name,
               description,
@@ -807,11 +871,13 @@ const Products = () => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
               />
-            )
+            ))
           )}
         </Box>
       ) : (
-        <>Loading...</>
+        <Box display="flex" justifyContent="center" alignItems="center" height="200px">
+          <Typography>Loading products...</Typography>
+        </Box>
       )}
     </Box>
   );

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Box, useTheme } from "@mui/material";
+import { Box, useTheme, TextField, InputAdornment, useMediaQuery } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import { useGetTransactionsQuery } from "state/api";
+import { useGetTransactionsQuery, useGetCustomersQuery } from "state/api";
 import Header from "components/Header";
-import DataGridCustomToolbar from "components/DataGridCustomToolbar";
+import FlexBetween from "components/FlexBetween";
+import SearchIcon from "@mui/icons-material/Search";
 
 const Transactions = () => {
   const theme = useTheme();
@@ -13,14 +14,54 @@ const Transactions = () => {
   const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState({});
   const [search, setSearch] = useState("");
-
   const [searchInput, setSearchInput] = useState("");
-  const { data, isLoading } = useGetTransactionsQuery({
+  const isNonMobile = useMediaQuery("(min-width: 1000px)");
+  
+  const { data: transactionsData, isLoading } = useGetTransactionsQuery({
     page,
     pageSize,
     sort: JSON.stringify(sort),
     search,
   });
+
+  // Fetch all customers to map user IDs to names
+  const { data: usersData } = useGetCustomersQuery();
+  
+  // Create a map of user IDs to names
+  const userMap = React.useMemo(() => {
+    const map = {};
+    if (usersData) {
+      usersData.forEach(user => {
+        map[user._id] = user.name;
+      });
+    }
+    return map;
+  }, [usersData]);
+  
+  // Add user names to transactions data
+  const data = React.useMemo(() => {
+    if (!transactionsData) return null;
+    
+    return {
+      ...transactionsData,
+      transactions: transactionsData.transactions.map(transaction => ({
+        ...transaction,
+        userName: userMap[transaction.userId] || 'Unknown User'
+      }))
+    };
+  }, [transactionsData, userMap]);
+
+  // Handle search with debounce
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      // Convert search term to lowercase for case-insensitive search
+      const searchTerm = searchInput.trim().toLowerCase();
+      setSearch(searchTerm);
+      setPage(0); // Reset to first page when searching
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const columns = [
     {
@@ -29,9 +70,10 @@ const Transactions = () => {
       flex: 1,
     },
     {
-      field: "userId",
-      headerName: "User ID",
+      field: "userName",
+      headerName: "User",
       flex: 1,
+      valueGetter: (params) => params.row.userName || 'Unknown User',
     },
     {
       field: "createdAt",
@@ -55,7 +97,35 @@ const Transactions = () => {
 
   return (
     <Box m="1.5rem 2.5rem">
-      <Header title="TRANSACTIONS" subtitle="Entire list of transactions" />
+      <FlexBetween mb={2} flexWrap="wrap" gap={2}>
+        <Header title="TRANSACTIONS" subtitle="Entire list of transactions" />
+        <Box display="flex" gap={2} width={isNonMobile ? 'auto' : '100%'}>
+          <TextField
+            variant="outlined"
+            size="small"
+            placeholder="Search by ID, user, date, products, or amount..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            sx={{
+              width: isNonMobile ? '400px' : '100%',
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.background.alt,
+                borderRadius: '9px',
+              },
+              '& .MuiOutlinedInput-input': {
+                padding: '10px 14px',
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
+      </FlexBetween>
       <Box
         height="80vh"
         sx={{
@@ -98,10 +168,7 @@ const Transactions = () => {
           onPageChange={(newPage) => setPage(newPage)}
           onPageSizeChange={(newPageSize) => setPageSize(newPageSize)}
           onSortModelChange={(newSortModel) => setSort(...newSortModel)}
-          components={{ Toolbar: DataGridCustomToolbar }}
-          componentsProps={{
-            toolbar: { searchInput, setSearchInput, setSearch },
-          }}
+          components={{ Toolbar: () => null }}
         />
       </Box>
     </Box>
