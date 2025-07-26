@@ -44,6 +44,7 @@ import {
   DialogContentText,
   DialogActions,
 } from "@mui/material";
+import FileUpload from "components/FileUpload";
 import {
   Save,
   Refresh,
@@ -86,6 +87,7 @@ import {
   ZoomIn,
   ZoomOut,
   Warning,
+  EditOutlined,
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useSelector, useDispatch } from "react-redux";
@@ -93,7 +95,12 @@ import {
   useGetUserSettingsQuery, 
   useUpdateUserSettingsMutation, 
   useResetUserSettingsMutation,
-  useUpdateSettingsFieldMutation 
+  useUpdateSettingsFieldMutation,
+  useUploadProfilePictureMutation,
+  useUploadDocumentsMutation,
+  useGetDocumentsQuery,
+  useDeleteDocumentMutation,
+  useDownloadDocumentQuery
 } from "state/api";
 import settingsService from "services/settingsService";
 
@@ -161,6 +168,15 @@ const Settings = () => {
   const [updateSettings, { isLoading: isUpdating }] = useUpdateUserSettingsMutation();
   const [resetSettings, { isLoading: isResetting }] = useResetUserSettingsMutation();
   const [updateField] = useUpdateSettingsFieldMutation();
+  
+  // File upload hooks
+  const [uploadProfilePicture] = useUploadProfilePictureMutation();
+  const [uploadDocuments] = useUploadDocumentsMutation();
+  const [deleteDocument] = useDeleteDocumentMutation();
+  const { data: documentsData, isLoading: documentsLoading } = useGetDocumentsQuery(
+    user?.id || user?._id,
+    { skip: !user?.id && !user?._id }
+  );
 
   // Default settings object
   const defaultSettings = {
@@ -173,6 +189,7 @@ const Settings = () => {
     jobTitle: "Senior Manager",
     department: "Sales",
     avatar: "",
+    profilePicture: "",
     
     // Notifications
     emailNotifications: true,
@@ -262,6 +279,7 @@ const Settings = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const [showProfilePictureDialog, setShowProfilePictureDialog] = useState(false);
 
   // Update local settings when API data loads
   React.useEffect(() => {
@@ -274,6 +292,15 @@ const Settings = () => {
 
     }
   }, [settingsData]);
+
+  // Debug authentication
+  React.useEffect(() => {
+    console.log('Settings component loaded');
+    console.log('User:', user);
+    console.log('User ID:', user?.id || user?._id);
+    console.log('Token:', localStorage.getItem('token'));
+    console.log('Settings data:', settingsData);
+  }, [user, settingsData]);
 
 
 
@@ -455,6 +482,110 @@ const Settings = () => {
     setShowResetDialog(false);
   };
 
+  // File upload handlers
+  const handleProfilePictureUpload = async (file) => {
+    console.log('Profile picture upload started:', file);
+    const userId = user?.id || user?._id;
+    if (!userId) {
+      console.error('No valid user ID found');
+      throw new Error("No valid user ID found");
+    }
+    
+    console.log('User ID:', userId);
+    console.log('File details:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    
+    try {
+      const result = await uploadProfilePicture({ userId, file }).unwrap();
+      console.log('Upload successful:', result);
+      setSuccessMessage("Profile picture uploaded successfully!");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      throw new Error(error.data?.message || "Failed to upload profile picture");
+    }
+  };
+
+  const handleDocumentsUpload = async (files, description, category, progressCallback) => {
+    const userId = user?.id || user?._id;
+    if (!userId) {
+      throw new Error("No valid user ID found");
+    }
+    
+    try {
+      // Simulate progress for each file
+      files.forEach((file, index) => {
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += Math.random() * 20;
+          if (progress >= 100) {
+            progress = 100;
+            clearInterval(interval);
+          }
+          progressCallback(file.name, Math.round(progress));
+        }, 200);
+      });
+      
+      await uploadDocuments({ userId, files, description, category }).unwrap();
+      setSuccessMessage(`${files.length} document(s) uploaded successfully!`);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      throw new Error(error.data?.message || "Failed to upload documents");
+    }
+  };
+
+  const handleDocumentDelete = async (documentId) => {
+    const userId = user?.id || user?._id;
+    if (!userId) {
+      throw new Error("No valid user ID found");
+    }
+    
+    try {
+      await deleteDocument({ userId, documentId }).unwrap();
+      setSuccessMessage("Document deleted successfully!");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      throw new Error(error.data?.message || "Failed to delete document");
+    }
+  };
+
+  const handleDocumentDownload = async (documentId) => {
+    const userId = user?.id || user?._id;
+    if (!userId) {
+      throw new Error("No valid user ID found");
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:9000/settings/${userId}/documents/${documentId}/download`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = ''; // Will use the original filename from the server
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      throw new Error("Failed to download document");
+    }
+  };
+
   return (
     <Box m="20px">
       {/* Header */}
@@ -552,21 +683,117 @@ const Settings = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Profile Picture Upload Dialog */}
+      <Dialog 
+        open={showProfilePictureDialog} 
+        onClose={() => {
+          console.log('Dialog closing');
+          setShowProfilePictureDialog(false);
+        }} 
+        maxWidth="sm" 
+        fullWidth
+      >
+        <DialogTitle>Upload Profile Picture</DialogTitle>
+        <DialogContent>
+          <Box sx={{ textAlign: 'center', py: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Select a new profile picture. Only image files are allowed.
+            </Typography>
+            <Box
+              sx={{
+                border: '2px dashed',
+                borderColor: 'primary.main',
+                borderRadius: 2,
+                p: 3,
+                cursor: 'pointer',
+                '&:hover': {
+                  backgroundColor: 'primary.light',
+                  opacity: 0.8,
+                },
+                transition: 'all 0.2s ease-in-out',
+              }}
+              onClick={() => {
+                console.log('Upload box clicked');
+                document.getElementById('profile-picture-input').click();
+              }}
+            >
+              <CloudUpload sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+              <Typography variant="h6" gutterBottom>
+                Click to Select Image
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                JPG, PNG, or GIF files up to 5MB
+              </Typography>
+            </Box>
+            <input
+              id="profile-picture-input"
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={async (event) => {
+                console.log('File input changed:', event.target.files);
+                const file = event.target.files[0];
+                if (file) {
+                  console.log('Selected file:', file);
+                  try {
+                    await handleProfilePictureUpload(file);
+                    setShowProfilePictureDialog(false);
+                  } catch (error) {
+                    console.error('Upload failed:', error);
+                  }
+                }
+                // Reset the input
+                event.target.value = '';
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowProfilePictureDialog(false)}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Profile Card */}
       <Card sx={{ mb: 3, background: `linear-gradient(135deg, ${theme.palette.primary.light}15 0%, ${theme.palette.primary.main}15 100%)` }}>
         <CardContent>
           <Box display="flex" alignItems="center" gap={3}>
-            <Avatar
-              sx={{ 
-                width: 80, 
-                height: 80, 
-                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                fontSize: '2rem',
-                fontWeight: 'bold'
-              }}
-            >
-              {settings.firstName.charAt(0)}{settings.lastName.charAt(0)}
-            </Avatar>
+            <Box position="relative" display="inline-block">
+              <Avatar
+                src={settings.profilePicture ? `http://localhost:9000/${settings.profilePicture}` : undefined}
+                sx={{ 
+                  width: 80, 
+                  height: 80, 
+                  background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                  fontSize: '2rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setShowProfilePictureDialog(true)}
+              >
+                {settings.firstName.charAt(0)}{settings.lastName.charAt(0)}
+              </Avatar>
+              <IconButton
+                size="small"
+                sx={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  backgroundColor: 'background.paper',
+                  border: '2px solid',
+                  borderColor: theme.palette.background.paper,
+                  boxShadow: 1,
+                  zIndex: 2,
+                  p: 0.5,
+                  '&:hover': { backgroundColor: theme.palette.primary.light },
+                }}
+                onClick={() => setShowProfilePictureDialog(true)}
+                aria-label="Edit profile picture"
+              >
+                <EditOutlined fontSize="small" />
+              </IconButton>
+            </Box>
             <Box flex={1}>
               <Typography variant="h5" fontWeight="bold" sx={{ mb: 1 }}>
                 {settings.firstName} {settings.lastName}
@@ -646,6 +873,12 @@ const Settings = () => {
           <Tab 
             icon={<Business />} 
             label="Business" 
+            iconPosition="start"
+            sx={{ minHeight: 64 }}
+          />
+          <Tab 
+            icon={<CloudUpload />} 
+            label="Files" 
             iconPosition="start"
             sx={{ minHeight: 64 }}
           />
@@ -1489,6 +1722,30 @@ const Settings = () => {
                 />
               </Grid>
             </Grid>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 8 && (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CloudUpload color="primary" />
+              File Management
+            </Typography>
+            <FileUpload
+              onUpload={handleDocumentsUpload}
+              onDelete={handleDocumentDelete}
+              onDownload={handleDocumentDownload}
+              files={documentsData?.documents || []}
+              maxFiles={5}
+              maxSize={10 * 1024 * 1024} // 10MB
+              title="Upload Documents"
+              description="Drag and drop documents here, or click to select files"
+              showPreview={true}
+              showDescription={true}
+              showCategory={true}
+            />
           </CardContent>
         </Card>
       )}

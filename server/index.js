@@ -5,6 +5,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import morgan from "morgan";
+import path from "path";
+import { fileURLToPath } from "url";
 import clientRoutes from "./routes/client.js";
 import generalRoutes from "./routes/general.js";
 import managementRoutes from "./routes/management.js";
@@ -39,6 +41,11 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
 
+// Serve static files from uploads directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 /* ROUTES */
 app.use("/client", clientRoutes);
 app.use("/general", generalRoutes);
@@ -46,6 +53,14 @@ app.use("/management", managementRoutes);
 app.use("/sales", salesRoutes);
 app.use("/auth", authRoutes);
 app.use("/settings", settingsRoutes);
+
+console.log("Routes registered:");
+console.log("- /client");
+console.log("- /general");
+console.log("- /management");
+console.log("- /sales");
+console.log("- /auth");
+console.log("- /settings");
 
 /* MONGOOSE SETUP */
 const PORT = process.env.PORT || 9000;

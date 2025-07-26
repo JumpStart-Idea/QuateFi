@@ -18,6 +18,23 @@ const SettingsSchema = new mongoose.Schema(
     department: { type: String, default: "Sales" },
     avatar: { type: String, default: "" },
     
+    // File Upload Settings
+    profilePicture: { type: String, default: "" },
+    documents: [{ 
+      filename: { type: String, required: true },
+      originalName: { type: String, required: true },
+      filePath: { type: String, required: true },
+      fileSize: { type: Number, required: true },
+      mimeType: { type: String, required: true },
+      uploadDate: { type: Date, default: Date.now },
+      description: { type: String, default: "" },
+      category: { type: String, enum: ["personal", "business", "legal", "other"], default: "other" }
+    }],
+    maxFileSize: { type: Number, default: 10, min: 1, max: 100 }, // MB
+    allowedFileTypes: [{ type: String, default: ["jpg", "jpeg", "png", "gif", "pdf", "doc", "docx", "txt"] }],
+    autoCompressImages: { type: Boolean, default: true },
+    backupUploads: { type: Boolean, default: true },
+    
     // Notifications
     emailNotifications: { type: Boolean, default: true },
     pushNotifications: { type: Boolean, default: false },

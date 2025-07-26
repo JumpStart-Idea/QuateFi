@@ -23,6 +23,7 @@ export const api = createApi({
     "Performance",
     "Dashboard",
     "Settings",
+    "Documents",
   ],
   endpoints: (build) => ({
     getUser: build.query({
@@ -176,6 +177,60 @@ export const api = createApi({
       }),
       invalidatesTags: ["Settings"],
     }),
+
+    // File upload endpoints
+    uploadProfilePicture: build.mutation({
+      query: ({ userId, file }) => {
+        const formData = new FormData();
+        formData.append('profilePicture', file);
+        
+        return {
+          url: `settings/${userId}/profile-picture`,
+          method: "POST",
+          body: formData,
+          // Don't set Content-Type header, let the browser set it with boundary
+        };
+      },
+      invalidatesTags: ["Settings"],
+    }),
+
+    uploadDocuments: build.mutation({
+      query: ({ userId, files, description, category }) => {
+        const formData = new FormData();
+        files.forEach(file => {
+          formData.append('documents', file);
+        });
+        if (description) formData.append('description', description);
+        if (category) formData.append('category', category);
+        
+        return {
+          url: `settings/${userId}/documents`,
+          method: "POST",
+          body: formData,
+        };
+      },
+      invalidatesTags: ["Documents", "Settings"],
+    }),
+
+    getDocuments: build.query({
+      query: (userId) => `settings/${userId}/documents`,
+      providesTags: ["Documents"],
+    }),
+
+    deleteDocument: build.mutation({
+      query: ({ userId, documentId }) => ({
+        url: `settings/${userId}/documents/${documentId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Documents", "Settings"],
+    }),
+
+    downloadDocument: build.query({
+      query: ({ userId, documentId }) => ({
+        url: `settings/${userId}/documents/${documentId}/download`,
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
   }),
 });
 
@@ -204,4 +259,9 @@ export const {
   useUpdateUserSettingsMutation,
   useResetUserSettingsMutation,
   useUpdateSettingsFieldMutation,
+  useUploadProfilePictureMutation,
+  useUploadDocumentsMutation,
+  useGetDocumentsQuery,
+  useDeleteDocumentMutation,
+  useDownloadDocumentQuery,
 } = api;
