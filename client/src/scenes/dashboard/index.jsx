@@ -65,11 +65,14 @@ const Dashboard = () => {
         <Box>
           <Button
             sx={{
-              backgroundColor: theme.palette.secondary.light,
-              color: theme.palette.background.alt,
+              backgroundColor: theme.palette.primary.main,
+              color: "white",
               fontSize: "14px",
               fontWeight: "bold",
               padding: "10px 20px",
+              "&:hover": {
+                backgroundColor: theme.palette.primary.dark,
+              },
             }}
           >
             <DownloadOutlined sx={{ mr: "10px" }} />
@@ -96,7 +99,7 @@ const Dashboard = () => {
           description="Since last month"
           icon={
             <Email
-              sx={{ color: theme.palette.secondary[300], fontSize: "26px" }}
+              sx={{ color: theme.palette.primary.main, fontSize: "26px" }}
             />
           }
         />
@@ -107,7 +110,7 @@ const Dashboard = () => {
           description="Since last month"
           icon={
             <PointOfSale
-              sx={{ color: theme.palette.secondary[300], fontSize: "26px" }}
+              sx={{ color: theme.palette.primary.main, fontSize: "26px" }}
             />
           }
         />
@@ -127,7 +130,7 @@ const Dashboard = () => {
           description="Since last month"
           icon={
             <PersonAdd
-              sx={{ color: theme.palette.secondary[300], fontSize: "26px" }}
+              sx={{ color: theme.palette.primary.main, fontSize: "26px" }}
             />
           }
         />
@@ -138,7 +141,7 @@ const Dashboard = () => {
           description="Since last month"
           icon={
             <Traffic
-              sx={{ color: theme.palette.secondary[300], fontSize: "26px" }}
+              sx={{ color: theme.palette.primary.main, fontSize: "26px" }}
             />
           }
         />
@@ -154,6 +157,7 @@ const Dashboard = () => {
             },
             "& .MuiDataGrid-cell": {
               borderBottom: "none",
+              color: theme.palette.secondary[100],
             },
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor: theme.palette.background.alt,
@@ -161,7 +165,7 @@ const Dashboard = () => {
               borderBottom: "none",
             },
             "& .MuiDataGrid-virtualScroller": {
-              backgroundColor: theme.palette.background.alt,
+              backgroundColor: theme.palette.background.default,
             },
             "& .MuiDataGrid-footerContainer": {
               backgroundColor: theme.palette.background.alt,
@@ -170,6 +174,12 @@ const Dashboard = () => {
             },
             "& .MuiDataGrid-toolbarContainer .MuiButton-text": {
               color: `${theme.palette.secondary[200]} !important`,
+            },
+            "& .MuiDataGrid-row": {
+              backgroundColor: theme.palette.background.default,
+              "&:hover": {
+                backgroundColor: theme.palette.background.alt,
+              },
             },
           }}
         >

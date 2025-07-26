@@ -10,10 +10,10 @@ const BreakdownChart = ({ isDashboard = false }) => {
   if (!data || isLoading) return "Loading...";
 
   const colors = [
-    theme.palette.secondary[500],
-    theme.palette.secondary[300],
-    theme.palette.secondary[300],
-    theme.palette.secondary[500],
+    theme.palette.primary.main, // #b2dd4b - main green
+    theme.palette.primary[700], // darker green for contrast
+    theme.palette.primary[300], // lighter green
+    theme.palette.primary[900], // darkest green
   ];
   const formattedData = Object.entries(data.salesByCategory).map(
     ([category, sales], i) => ({
@@ -79,7 +79,7 @@ const BreakdownChart = ({ isDashboard = false }) => {
         borderWidth={1}
         borderColor={{
           from: "color",
-          modifiers: [["darker", 0.2]],
+          modifiers: [["darker", 0.4]],
         }}
         enableArcLinkLabels={!isDashboard}
         arcLinkLabelsTextColor={theme.palette.secondary[200]}
@@ -88,7 +88,7 @@ const BreakdownChart = ({ isDashboard = false }) => {
         arcLabelsSkipAngle={10}
         arcLabelsTextColor={{
           from: "color",
-          modifiers: [["darker", 2]],
+          modifiers: [["darker", 3]],
         }}
         legends={[
           {
@@ -100,7 +100,7 @@ const BreakdownChart = ({ isDashboard = false }) => {
             itemsSpacing: 0,
             itemWidth: 85,
             itemHeight: 18,
-            itemTextColor: "#999",
+            itemTextColor: theme.palette.secondary[100],
             itemDirection: "left-to-right",
             itemOpacity: 1,
             symbolSize: 18,
@@ -120,7 +120,7 @@ const BreakdownChart = ({ isDashboard = false }) => {
         position="absolute"
         top="50%"
         left="50%"
-        color={theme.palette.secondary[400]}
+        color={theme.palette.secondary[100]}
         textAlign="center"
         pointerEvents="none"
         sx={{

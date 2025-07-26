@@ -73,6 +73,7 @@ mongoose
     app.listen(PORT, () => console.log(`Server Port: ${PORT}`));
 
     /* ONLY ADD DATA ONE TIME */
+    // Uncomment these lines to seed the database with sample data
     // AffiliateStat.insertMany(dataAffiliateStat);
     // OverallStat.insertMany(dataOverallStat);
     // Product.insertMany(dataProduct);

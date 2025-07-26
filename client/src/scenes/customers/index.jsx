@@ -91,7 +91,10 @@ const Customers = () => {
   const [deleteName, setDeleteName] = React.useState("");
   const [searchTerm, setSearchTerm] = React.useState("");
 
-  const countryOptions = geoData.features.map(f => ({ code: f.id, name: f.properties.name }));
+  const countryOptions = geoData.features.map(f => ({ 
+    code: f.id, // Use 3-letter code directly
+    name: f.properties.name 
+  }));
 
   // Filter customers based on search term
   const filteredCustomers = data ? data.filter(customer => {
@@ -893,7 +896,7 @@ const Customers = () => {
             borderBottom: "none",
           },
           "& .MuiDataGrid-virtualScroller": {
-            backgroundColor: theme.palette.primary.light,
+            backgroundColor: theme.palette.background.default,
           },
           "& .MuiDataGrid-footerContainer": {
             backgroundColor: theme.palette.background.alt,

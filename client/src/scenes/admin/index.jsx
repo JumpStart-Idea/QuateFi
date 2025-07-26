@@ -302,7 +302,7 @@ const Admin = () => {
             borderBottom: "none",
           },
           "& .MuiDataGrid-virtualScroller": {
-            backgroundColor: theme.palette.primary.light,
+            backgroundColor: theme.palette.background.default,
             overflowX: 'hidden',
           },
           "& .MuiDataGrid-footerContainer": {

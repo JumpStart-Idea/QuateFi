@@ -13,12 +13,12 @@ const OverviewChart = ({ isDashboard = false, view }) => {
     const { monthlyData } = data;
     const totalSalesLine = {
       id: "totalSales",
-      color: theme.palette.secondary.main,
+      color: theme.palette.primary.main, // #b2dd4b - main green
       data: [],
     };
     const totalUnitsLine = {
       id: "totalUnits",
-      color: theme.palette.secondary[600],
+      color: theme.palette.primary[700], // darker green for contrast
       data: [],
     };
 
@@ -53,27 +53,27 @@ const OverviewChart = ({ isDashboard = false, view }) => {
         axis: {
           domain: {
             line: {
-              stroke: theme.palette.secondary[200],
+              stroke: theme.palette.secondary[100],
             },
           },
           legend: {
             text: {
-              fill: theme.palette.secondary[200],
+              fill: theme.palette.secondary[100],
             },
           },
           ticks: {
             line: {
-              stroke: theme.palette.secondary[200],
+              stroke: theme.palette.secondary[100],
               strokeWidth: 1,
             },
             text: {
-              fill: theme.palette.secondary[200],
+              fill: theme.palette.secondary[100],
             },
           },
         },
         legends: {
           text: {
-            fill: theme.palette.secondary[200],
+            fill: theme.palette.secondary[100],
           },
         },
         tooltip: {

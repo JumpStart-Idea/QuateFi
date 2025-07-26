@@ -40,24 +40,76 @@ export const tokensDark = {
     800: "#665429",
     900: "#332a14",
   },
+  // New green color for light mode
+  green: {
+    50: "#f7fbf0",
+    100: "#eef7e1",
+    200: "#ddefc3",
+    300: "#cbe7a5",
+    400: "#b9df87",
+    500: "#b2dd4b", // Main green color
+    600: "#8fb13c",
+    700: "#6c852d",
+    800: "#49591e",
+    900: "#262d0f",
+  },
 };
 
-// function that reverses the color palette
-function reverseTokens(tokensDark) {
-  const reversedTokens = {};
-  Object.entries(tokensDark).forEach(([key, val]) => {
-    const keys = Object.keys(val);
-    const values = Object.values(val);
-    const length = keys.length;
-    const reversedObj = {};
-    for (let i = 0; i < length; i++) {
-      reversedObj[keys[i]] = values[length - i - 1];
-    }
-    reversedTokens[key] = reversedObj;
-  });
-  return reversedTokens;
-}
-export const tokensLight = reverseTokens(tokensDark);
+// Light mode tokens - manually defined for proper green/white theme
+export const tokensLight = {
+  grey: {
+    0: "#000000", // black
+    10: "#141414", // dark grey
+    50: "#292929", // dark grey
+    100: "#3d3d3d",
+    200: "#525252",
+    300: "#666666",
+    400: "#858585",
+    500: "#a3a3a3",
+    600: "#c2c2c2",
+    700: "#e0e0e0",
+    800: "#f0f0f0",
+    900: "#f6f6f6",
+    1000: "#ffffff", // white
+  },
+  primary: {
+    // green for light mode
+    100: "#262d0f",
+    200: "#49591e",
+    300: "#6c852d",
+    400: "#8fb13c",
+    500: "#b2dd4b", // Main green color
+    600: "#b9df87",
+    700: "#cbe7a5",
+    800: "#ddefc3",
+    900: "#eef7e1",
+  },
+  secondary: {
+    // Black and dark colors for text in light mode
+    50: "#000000", // black
+    100: "#000000", // black for main text
+    200: "#141414", // very dark grey
+    300: "#292929", // dark grey
+    400: "#3d3d3d", // medium dark grey
+    500: "#525252", // medium grey
+    600: "#666666", // medium grey
+    700: "#858585", // light grey
+    800: "#a3a3a3", // light grey
+    900: "#c2c2c2", // very light grey
+  },
+  green: {
+    50: "#f7fbf0",
+    100: "#eef7e1",
+    200: "#ddefc3",
+    300: "#cbe7a5",
+    400: "#b9df87",
+    500: "#b2dd4b", // Main green color
+    600: "#8fb13c",
+    700: "#6c852d",
+    800: "#49591e",
+    900: "#262d0f",
+  },
+};
 
 // mui theme settings
 export const themeSettings = (mode) => {
@@ -66,7 +118,7 @@ export const themeSettings = (mode) => {
       mode: mode,
       ...(mode === "dark"
         ? {
-            // palette values for dark mode
+            // palette values for dark mode - keep as is
             primary: {
               ...tokensDark.primary,
               main: tokensDark.primary[400],
@@ -86,24 +138,25 @@ export const themeSettings = (mode) => {
             },
           }
         : {
-            // palette values for light mode
+            // palette values for light mode - updated with green and white
             primary: {
               ...tokensLight.primary,
-              main: tokensDark.grey[50],
-              light: tokensDark.grey[100],
+              main: tokensLight.primary[500], // #b2dd4b
+              light: tokensLight.primary[600],
+              dark: tokensLight.primary[400],
             },
             secondary: {
               ...tokensLight.secondary,
-              main: tokensDark.secondary[600],
-              light: tokensDark.secondary[700],
+              main: tokensLight.secondary[100], // black for main text
+              light: tokensLight.secondary[300], // dark grey for secondary text
             },
             neutral: {
               ...tokensLight.grey,
-              main: tokensDark.grey[500],
+              main: tokensLight.grey[500],
             },
             background: {
-              default: tokensDark.grey[0],
-              alt: tokensDark.grey[50],
+              default: tokensLight.grey[1000], // white
+              alt: tokensLight.grey[900], // very light grey
             },
           }),
     },

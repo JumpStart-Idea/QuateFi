@@ -9,21 +9,42 @@ body,
   font-family: "Inter", sans-serif;
 }
 
+/* CSS Custom Properties for theme-aware scrollbars */
+:root {
+  --scrollbar-track: #7a7f9d;
+  --scrollbar-thumb: #21295c;
+  --scrollbar-track-hover: #21295c;
+}
+
+/* Light mode scrollbar colors */
+[data-theme="light"] {
+  --scrollbar-track: #e0e0e0;
+  --scrollbar-thumb: #b2dd4b;
+  --scrollbar-track-hover: #8fb13c;
+}
+
+/* Dark mode scrollbar colors */
+[data-theme="dark"] {
+  --scrollbar-track: #7a7f9d;
+  --scrollbar-thumb: #21295c;
+  --scrollbar-track-hover: #21295c;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
 }
 
 /* Track */
 ::-webkit-scrollbar-track {
-  background: #7a7f9d;
+  background: var(--scrollbar-track);
 }
 
 /* Handle */
 ::-webkit-scrollbar-thumb {
-  background: #21295c;
+  background: var(--scrollbar-thumb);
 }
 
 /* Handle on Hover */
 ::-webkit-scrollbar-track:hover {
-  background: #21295c;
+  background: var(--scrollbar-track-hover);
 }

@@ -265,7 +265,7 @@ const Settings = () => {
     apiAccess: false,
     
     // Custom Settings
-    customTheme: "#1976d2",
+    customTheme: "#b2dd4b",
     customMessage: "",
     notificationSound: "default",
     accessibilityMode: false,
@@ -614,7 +614,7 @@ const Settings = () => {
             disabled={isUpdating || (!user?.id && !user?._id)}
             sx={{ 
               background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
-              boxShadow: '0 3px 5px 2px rgba(25, 118, 210, .3)',
+              boxShadow: `0 3px 5px 2px ${theme.palette.primary.main}40`,
             }}
           >
             {isUpdating ? "Saving..." : "Save Changes"}

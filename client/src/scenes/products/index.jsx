@@ -16,6 +16,11 @@ import {
   DialogActions,
   TextField,
   InputAdornment,
+  Pagination,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import Header from "components/Header";
 import { useGetProductsQuery, useCreateProductMutation, useUpdateProductMutation, useDeleteProductMutation } from "state/api";
@@ -185,6 +190,11 @@ const Products = () => {
   const [deleteId, setDeleteId] = useState("");
   const [deleteName, setDeleteName] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(() => {
+    const saved = localStorage.getItem('productsItemsPerPage');
+    return saved ? parseInt(saved, 10) : 12;
+  });
   const showNotification = useContext(NotificationContext);
 
   // Real-time validation for create form
@@ -500,6 +510,28 @@ const Products = () => {
     );
   }) : [];
 
+  // Pagination logic
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Reset to first page when items per page changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
+
+  // Save items per page to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('productsItemsPerPage', itemsPerPage.toString());
+  }, [itemsPerPage]);
+
   return (
     <Box m="1.5rem 2.5rem">
       <FlexBetween mb={2} flexWrap="wrap" gap={2}>
@@ -539,6 +571,61 @@ const Products = () => {
           </Button>
         </Box>
       </FlexBetween>
+
+      {/* Pagination Controls */}
+      {filteredProducts.length > 0 && (
+        <Box 
+          display="flex" 
+          justifyContent="space-between" 
+          alignItems="center" 
+          mb={2}
+          flexWrap="wrap"
+          gap={2}
+          sx={{
+            flexDirection: isNonMobile ? 'row' : 'column',
+            alignItems: isNonMobile ? 'center' : 'stretch',
+          }}
+        >
+          <Box 
+            display="flex" 
+            alignItems="center" 
+            gap={2}
+            sx={{
+              flexDirection: isNonMobile ? 'row' : 'column',
+              width: isNonMobile ? 'auto' : '100%',
+            }}
+          >
+            <Typography variant="body2" color="textSecondary">
+              Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} products
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: isNonMobile ? 120 : '100%' }}>
+              <InputLabel>Items per page</InputLabel>
+              <Select
+                value={itemsPerPage}
+                label="Items per page"
+                onChange={(e) => setItemsPerPage(e.target.value)}
+              >
+                <MenuItem value={6}>6</MenuItem>
+                <MenuItem value={12}>12</MenuItem>
+                <MenuItem value={24}>24</MenuItem>
+                <MenuItem value={48}>48</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+          
+          {totalPages > 1 && (
+            <Pagination
+              count={totalPages}
+              page={currentPage}
+              onChange={(e, page) => setCurrentPage(page)}
+              color="primary"
+              size={isNonMobile ? "large" : "medium"}
+              showFirstButton
+              showLastButton
+            />
+          )}
+        </Box>
+      )}
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle>Create Product</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 400 }}>
@@ -848,7 +935,7 @@ const Products = () => {
               </Typography>
             </Box>
           ) : (
-            filteredProducts.map(({
+            currentProducts.map(({
               _id,
               name,
               description,

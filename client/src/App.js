@@ -70,6 +70,12 @@ function App() {
   }, [dispatch]); // Only run on mount
   const mode = useSelector((state) => state.global.mode);
   const theme = useMemo(() => createTheme(themeSettings(mode)), [mode]);
+  
+  // Set data-theme attribute for CSS custom properties
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', mode);
+  }, [mode]);
+  
   return (
     <NotificationProvider>
       <div className="app">

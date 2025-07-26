@@ -141,7 +141,7 @@ const Transactions = () => {
             borderBottom: "none",
           },
           "& .MuiDataGrid-virtualScroller": {
-            backgroundColor: theme.palette.primary.light,
+            backgroundColor: theme.palette.background.default,
           },
           "& .MuiDataGrid-footerContainer": {
             backgroundColor: theme.palette.background.alt,
