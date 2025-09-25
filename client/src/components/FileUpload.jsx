@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';  
 import {
   Box,
   Typography,
@@ -23,6 +23,8 @@ import {
   MenuItem,
   Avatar,
   Tooltip,
+  Fade,
+  Zoom,
 } from '@mui/material';
 import {
   CloudUpload,
@@ -34,11 +36,11 @@ import {
   PictureAsPdf,
   InsertDriveFile,
   CheckCircle,
-  Error,
   Add,
+  FileUpload as FileUploadIcon,
+  Close,
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
-import { Dialog as MuiDialog } from '@mui/material';
 
 const FileUpload = ({ 
   onUpload, 
@@ -60,6 +62,7 @@ const FileUpload = ({
   showDescription = true,
   showCategory = true,
 }) => {
+  // State management
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
   const [uploadErrors, setUploadErrors] = useState({});
@@ -67,34 +70,46 @@ const FileUpload = ({
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadDescription, setUploadDescription] = useState('');
   const [uploadCategory, setUploadCategory] = useState('other');
-  const fileInputRef = useRef(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  
+  // Refs
+  const fileInputRef = useRef(null);
+  
+  // Memoized values
+  const fileSizeLimit = useMemo(() => maxSize / (1024 * 1024), [maxSize]);
+  const isUploading = uploading || Object.keys(uploadProgress).length > 0;
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
-    console.log('onDrop called');
-    console.log('Accepted files:', acceptedFiles);
-    console.log('Rejected files:', rejectedFiles);
+    // Clear previous errors
+    setUploadErrors({});
     
     // Handle too many files
     if (acceptedFiles.length > maxFiles) {
-      setUploadErrors({ general: `You can only upload up to ${maxFiles} files at a time.` });
+      setUploadErrors({ 
+        general: `You can only upload up to ${maxFiles} files at a time. Selected: ${acceptedFiles.length}` 
+      });
       setSelectedFiles([]);
       setUploadDialogOpen(false);
       return;
     }
-    // Handle rejected files
+    
+    // Handle rejected files with detailed error messages
     if (rejectedFiles.length > 0) {
       const errors = {};
       rejectedFiles.forEach(({ file, errors: fileErrors }) => {
         errors[file.name] = fileErrors.map(error => {
-          if (error.code === 'file-too-large') {
-            return `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB`;
+          switch (error.code) {
+            case 'file-too-large':
+              return `File too large. Maximum size is ${fileSizeLimit}MB`;
+            case 'file-invalid-type':
+              return 'Invalid file type. Please select a supported file format';
+            case 'too-many-files':
+              return 'Too many files selected';
+            default:
+              return error.message;
           }
-          if (error.code === 'file-invalid-type') {
-            return 'Invalid file type';
-          }
-          return error.message;
         });
       });
       setUploadErrors(errors);
@@ -102,46 +117,47 @@ const FileUpload = ({
 
     // Handle accepted files
     if (acceptedFiles.length > 0) {
-      console.log('Setting selected files:', acceptedFiles);
       setSelectedFiles(acceptedFiles);
       setUploadDialogOpen(true);
     }
-  }, [maxSize, maxFiles]);
+  }, [maxFiles, fileSizeLimit]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: acceptedFileTypes,
     maxSize,
     maxFiles,
-    noClick: false, // Ensure click events are handled
-    noDrag: false,  // Ensure drag events are handled
+    noClick: false,
+    noDrag: false,
+    onDragEnter: () => setDragActive(true),
+    onDragLeave: () => setDragActive(false),
+    onDragOver: () => setDragActive(true),
+    disabled: isUploading,
   });
 
-  // Add explicit click handler for better compatibility
-  const handleUploadAreaClick = () => {
-    console.log('Upload area clicked');
-    console.log('File input ref:', fileInputRef.current);
+  // Handle upload area click
+  const handleUploadAreaClick = useCallback(() => {
+    if (isUploading) return;
+    
     if (fileInputRef.current) {
-      console.log('Triggering file input click');
       fileInputRef.current.click();
-    } else {
-      console.log('File input ref is null');
     }
-  };
+  }, [isUploading]);
 
-  // Fallback file input handler
-  const handleFileInputChange = (event) => {
-    console.log('Fallback file input change');
+  // Handle file input change
+  const handleFileInputChange = useCallback((event) => {
     const files = Array.from(event.target.files || []);
-    console.log('Files selected via fallback:', files);
     
     if (files.length > maxFiles) {
-      setUploadErrors({ general: `You can only upload up to ${maxFiles} files at a time.` });
+      setUploadErrors({ 
+        general: `You can only upload up to ${maxFiles} files at a time. Selected: ${files.length}` 
+      });
       setSelectedFiles([]);
       setUploadDialogOpen(false);
       event.target.value = '';
       return;
     }
+    
     if (files.length > 0) {
       setSelectedFiles(files);
       setUploadDialogOpen(true);
@@ -149,10 +165,10 @@ const FileUpload = ({
     
     // Reset the input
     event.target.value = '';
-  };
+  }, [maxFiles]);
 
-  const handleUpload = async () => {
-    if (selectedFiles.length === 0) return;
+  const handleUpload = useCallback(async () => {
+    if (selectedFiles.length === 0 || isUploading) return;
 
     setUploading(true);
     setUploadProgress({});
@@ -162,13 +178,13 @@ const FileUpload = ({
       const progressCallback = (fileName, progress) => {
         setUploadProgress(prev => ({
           ...prev,
-          [fileName]: progress
+          [fileName]: Math.min(100, Math.max(0, progress))
         }));
       };
 
       await onUpload(selectedFiles, uploadDescription, uploadCategory, progressCallback);
       
-      // Show 100% completion briefly before hiding
+      // Show completion state
       setUploadProgress(prev => {
         const completed = {};
         selectedFiles.forEach(file => {
@@ -177,257 +193,439 @@ const FileUpload = ({
         return completed;
       });
       
-      // Wait a moment to show completion, then reset
+      // Reset form after successful upload
       setTimeout(() => {
         setSelectedFiles([]);
         setUploadDescription('');
         setUploadCategory('other');
         setUploadDialogOpen(false);
-        setUploadProgress({}); // Clear progress bar
-        setUploadErrors({}); // Clear any errors
-      }, 1000); // 1 second delay
+        setUploadProgress({});
+        setUploadErrors({});
+      }, 1500);
+      
     } catch (error) {
       console.error('Upload failed:', error);
-      setUploadErrors({ general: error.message || 'Upload failed' });
-      // Don't clear progress on error so user can see what happened
+      setUploadErrors({ 
+        general: error.message || 'Upload failed. Please try again.' 
+      });
     } finally {
       setUploading(false);
     }
-  };
+  }, [selectedFiles, uploadDescription, uploadCategory, onUpload, isUploading]);
 
-  const handleDelete = async (fileId) => {
+  const handleDelete = useCallback(async (fileId) => {
     try {
       await onDelete(fileId);
     } catch (error) {
       console.error('Delete failed:', error);
+      setUploadErrors({ 
+        general: error.message || 'Failed to delete file. Please try again.' 
+      });
     }
-  };
+  }, [onDelete]);
 
-  const handleDownload = async (fileId) => {
+  const handleDownload = useCallback(async (fileId) => {
     try {
       if (onDownload) {
         await onDownload(fileId);
       } else {
         console.error('No download handler provided');
+        setUploadErrors({ 
+          general: 'Download functionality not available' 
+        });
       }
     } catch (error) {
       console.error('Download failed:', error);
+      setUploadErrors({ 
+        general: error.message || 'Failed to download file. Please try again.' 
+      });
     }
-  };
+  }, [onDownload]);
 
-  const getFileIcon = (mimeType) => {
+  const getFileIcon = useCallback((mimeType) => {
     if (mimeType.startsWith('image/')) return <Image color="primary" />;
     if (mimeType === 'application/pdf') return <PictureAsPdf color="error" />;
+    if (mimeType.includes('word') || mimeType.includes('document')) return <Description color="info" />;
     return <InsertDriveFile color="action" />;
-  };
+  }, []);
 
-  const formatFileSize = (bytes) => {
+  const formatFileSize = useCallback((bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  }, []);
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString();
-  };
+  const formatDate = useCallback((date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }, []);
+
+  const getFileTypeColor = useCallback((mimeType) => {
+    if (mimeType.startsWith('image/')) return 'success';
+    if (mimeType === 'application/pdf') return 'error';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'info';
+    return 'default';
+  }, []);
 
   return (
     <Box>
       {/* Upload Area */}
-      <Paper
-        {...getRootProps()}
-        sx={{
-          p: 3,
-          textAlign: 'center',
-          cursor: 'pointer',
-          border: '2px dashed',
-          borderColor: isDragActive ? 'primary.main' : 'grey.300',
-          backgroundColor: isDragActive ? 'primary.light' : 'background.paper',
-          '&:hover': {
-            borderColor: 'primary.main',
-            backgroundColor: 'primary.light',
-            transform: 'scale(1.02)',
-          },
-          transition: 'all 0.2s ease-in-out',
-          position: 'relative',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 1,
-          }
-        }}
-        onClick={handleUploadAreaClick}
-      >
-        <input 
-          {...getInputProps()} 
-          ref={fileInputRef}
-          onChange={handleFileInputChange}
-        />
-        <Box sx={{ position: 'relative', zIndex: 2 }}>
-          <CloudUpload sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-          <Typography variant="h6" gutterBottom>
-            {title}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {description}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-            Maximum {maxFiles} files, {maxSize / (1024 * 1024)}MB each
-          </Typography>
-          <Button
-            variant="outlined"
-            size="small"
-            sx={{ mt: 2 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleUploadAreaClick();
-            }}
-          >
-            Browse Files
-          </Button>
-        </Box>
-      </Paper>
+      <Fade in={true} timeout={500}>
+        <Paper
+          {...getRootProps()}
+          sx={{
+            p: 4,
+            textAlign: 'center',
+            cursor: isUploading ? 'not-allowed' : 'pointer',
+            border: '2px dashed',
+            borderColor: isDragActive || dragActive ? 'primary.main' : 'grey.300',
+            backgroundColor: isDragActive || dragActive ? 'primary.light' : 'background.paper',
+            opacity: isUploading ? 0.6 : 1,
+            '&:hover': {
+              borderColor: isUploading ? 'grey.300' : 'primary.main',
+              backgroundColor: isUploading ? 'background.paper' : 'primary.light',
+              transform: isUploading ? 'none' : 'scale(1.02)',
+            },
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 1,
+            }
+          }}
+          onClick={handleUploadAreaClick}
+        >
+          <input 
+            {...getInputProps()} 
+            ref={fileInputRef}
+            onChange={handleFileInputChange}
+          />
+          <Box sx={{ position: 'relative', zIndex: 2 }}>
+            <Zoom in={true} timeout={300}>
+              <Box>
+                <CloudUpload 
+                  sx={{ 
+                    fontSize: 64, 
+                    color: isUploading ? 'grey.400' : 'primary.main', 
+                    mb: 2,
+                    animation: isUploading ? 'pulse 2s infinite' : 'none',
+                    '@keyframes pulse': {
+                      '0%': { opacity: 1 },
+                      '50%': { opacity: 0.5 },
+                      '100%': { opacity: 1 },
+                    }
+                  }} 
+                />
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                  {isUploading ? 'Uploading...' : title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {isUploading ? 'Please wait while files are being uploaded' : description}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                  Maximum {maxFiles} files, {fileSizeLimit}MB each
+                </Typography>
+                {!isUploading && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<FileUploadIcon />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUploadAreaClick();
+                    }}
+                    sx={{ 
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 500
+                    }}
+                  >
+                    Browse Files
+                  </Button>
+                )}
+              </Box>
+            </Zoom>
+          </Box>
+        </Paper>
+      </Fade>
 
       {/* Upload Progress */}
-      {uploadDialogOpen && Object.keys(uploadProgress).length > 0 && (
-        <Box sx={{ mt: 2 }}>
-          {Object.entries(uploadProgress).map(([fileName, progress]) => (
-            <Box key={fileName} sx={{ mb: 1 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body2">{fileName}</Typography>
-                <Typography variant="body2">{progress}%</Typography>
+      {Object.keys(uploadProgress).length > 0 && (
+        <Fade in={true} timeout={300}>
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+              Upload Progress
+            </Typography>
+            {Object.entries(uploadProgress).map(([fileName, progress]) => (
+              <Box key={fileName} sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500, flex: 1, mr: 2 }}>
+                    {fileName}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" color="primary" sx={{ fontWeight: 600 }}>
+                      {progress}%
+                    </Typography>
+                    {progress === 100 && (
+                      <CheckCircle color="success" sx={{ fontSize: 16 }} />
+                    )}
+                  </Box>
+                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={progress} 
+                  sx={{ 
+                    height: 8, 
+                    borderRadius: 4,
+                    backgroundColor: 'grey.200',
+                    '& .MuiLinearProgress-bar': {
+                      borderRadius: 4,
+                    }
+                  }} 
+                />
               </Box>
-              <LinearProgress variant="determinate" value={progress} />
-            </Box>
-          ))}
-        </Box>
+            ))}
+          </Box>
+        </Fade>
       )}
 
       {/* Upload Errors */}
       {Object.keys(uploadErrors).length > 0 && (
-        <Box sx={{ mt: 2 }}>
-          {Object.entries(uploadErrors).map(([fileName, errors]) => (
-            <Alert key={fileName} severity="error" sx={{ mb: 1 }}>
-              <Typography variant="body2" fontWeight="bold">{fileName}:</Typography>
-              {Array.isArray(errors) ? errors.join(', ') : errors}
-            </Alert>
-          ))}
-        </Box>
+        <Fade in={true} timeout={300}>
+          <Box sx={{ mt: 2 }}>
+            {Object.entries(uploadErrors).map(([fileName, errors]) => (
+              <Alert 
+                key={fileName} 
+                severity="error" 
+                sx={{ 
+                  mb: 1,
+                  '& .MuiAlert-message': {
+                    width: '100%'
+                  }
+                }}
+                action={
+                  <IconButton
+                    size="small"
+                    onClick={() => setUploadErrors({})}
+                    color="inherit"
+                  >
+                    <Close fontSize="small" />
+                  </IconButton>
+                }
+              >
+                <Typography variant="body2" fontWeight="bold" sx={{ mb: 0.5 }}>
+                  {fileName === 'general' ? 'Upload Error' : fileName}:
+                </Typography>
+                <Typography variant="body2">
+                  {Array.isArray(errors) ? errors.join(', ') : errors}
+                </Typography>
+              </Alert>
+            ))}
+          </Box>
+        </Fade>
       )}
 
       {/* File List */}
       {files.length > 0 && (
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Uploaded Files ({files.length})
-          </Typography>
-          <List>
-            {files.map((file) => (
-              <ListItem key={file._id || file.id} divider>
-                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                  {getFileIcon(file.mimeType)}
-                  <Box sx={{ ml: 2, flex: 1 }}>
-                    <ListItemText
-                      primary={file.originalName}
-                      secondary={
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            {formatFileSize(file.fileSize)} • {formatDate(file.uploadDate)}
-                          </Typography>
-                          {file.description && (
-                            <Typography variant="body2" color="text.secondary">
-                              {file.description}
+        <Fade in={true} timeout={500}>
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="h6" gutterBottom sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1,
+              fontWeight: 600 
+            }}>
+              <FileUploadIcon color="primary" />
+              Uploaded Files ({files.length})
+            </Typography>
+            <List sx={{ 
+              bgcolor: 'background.paper', 
+              borderRadius: 2, 
+              border: '1px solid',
+              borderColor: 'divider',
+              overflow: 'hidden'
+            }}>
+              {files.map((file, index) => (
+                <Fade in={true} timeout={300} key={file._id || file.id} style={{ transitionDelay: `${index * 100}ms` }}>
+                  <ListItem 
+                    divider={index < files.length - 1}
+                    sx={{ 
+                      py: 2,
+                      '&:hover': {
+                        backgroundColor: 'action.hover',
+                      },
+                      transition: 'background-color 0.2s ease-in-out'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                      <Avatar 
+                        sx={{ 
+                          bgcolor: `${getFileTypeColor(file.mimeType)}.light`,
+                          color: `${getFileTypeColor(file.mimeType)}.contrastText`,
+                          mr: 2,
+                          width: 40,
+                          height: 40
+                        }}
+                      >
+                        {getFileIcon(file.mimeType)}
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <ListItemText
+                          primary={
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                              {file.originalName}
                             </Typography>
-                          )}
-                          {file.category && (
-                            <Chip 
-                              label={file.category} 
-                              size="small" 
-                              sx={{ mt: 0.5 }}
-                            />
-                          )}
-                        </Box>
-                      }
-                    />
-                  </Box>
-                </Box>
-                <ListItemSecondaryAction>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    {showPreview && (
-                      <Tooltip title={file.mimeType.startsWith('image/') ? "Preview" : "Preview not available"}>
-                        <span>
-                          <IconButton
+                          }
+                          secondary={
+                            <Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  {formatFileSize(file.fileSize)}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">•</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {formatDate(file.uploadDate)}
+                                </Typography>
+                              </Box>
+                              {file.description && (
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                  {file.description}
+                                </Typography>
+                              )}
+                              {file.category && (
+                                <Chip 
+                                  label={file.category} 
+                                  size="small" 
+                                  color={getFileTypeColor(file.mimeType)}
+                                  sx={{ 
+                                    textTransform: 'capitalize',
+                                    fontWeight: 500
+                                  }}
+                                />
+                              )}
+                            </Box>
+                          }
+                        />
+                      </Box>
+                    </Box>
+                    <ListItemSecondaryAction>
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        {showPreview && (
+                          <Tooltip title={file.mimeType.startsWith('image/') ? "Preview" : "Preview not available"}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                disabled={!file.mimeType.startsWith('image/')}
+                                onClick={() => {
+                                  if (file.mimeType.startsWith('image/')) {
+                                    setPreviewFile(file);
+                                    setPreviewOpen(true);
+                                  }
+                                }}
+                                sx={{ 
+                                  color: file.mimeType.startsWith('image/') ? 'primary.main' : 'grey.400'
+                                }}
+                              >
+                                <Visibility />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="Download">
+                          <IconButton 
                             size="small"
-                            disabled={!file.mimeType.startsWith('image/')}
-                            onClick={() => {
-                              if (file.mimeType.startsWith('image/')) {
-                                setPreviewFile(file);
-                                setPreviewOpen(true);
-                              }
-                            }}
+                            onClick={() => handleDownload(file._id || file.id)}
+                            sx={{ color: 'primary.main' }}
                           >
-                            <Visibility />
+                            <Download />
                           </IconButton>
-                        </span>
-                      </Tooltip>
-                    )}
-                    <Tooltip title="Download">
-                      <IconButton 
-                        size="small"
-                        onClick={() => handleDownload(file._id || file.id)}
-                      >
-                        <Download />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <IconButton 
-                        size="small" 
-                        color="error"
-                        onClick={() => handleDelete(file._id || file.id)}
-                      >
-                        <Delete />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </ListItemSecondaryAction>
-              </ListItem>
-            ))}
-          </List>
-        </Box>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleDelete(file._id || file.id)}
+                          >
+                            <Delete />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                </Fade>
+              ))}
+            </List>
+          </Box>
+        </Fade>
       )}
 
       {/* Upload Dialog */}
-      <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Upload Files</DialogTitle>
+      <Dialog 
+        open={uploadDialogOpen} 
+        onClose={() => !isUploading && setUploadDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 2 }
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1,
+          pb: 1 
+        }}>
+          <CloudUpload color="primary" />
+          Upload Files
+        </DialogTitle>
         <DialogContent>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               Selected Files ({selectedFiles.length}):
             </Typography>
-            {selectedFiles.map((file, index) => (
-              <Chip
-                key={index}
-                label={`${file.name} (${formatFileSize(file.size)})`}
-                sx={{ mr: 1, mb: 1 }}
-              />
-            ))}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {selectedFiles.map((file, index) => (
+                <Chip
+                  key={index}
+                  label={`${file.name} (${formatFileSize(file.size)})`}
+                  color="primary"
+                  variant="outlined"
+                  sx={{ 
+                    maxWidth: '100%',
+                    '& .MuiChip-label': {
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }
+                  }}
+                />
+              ))}
+            </Box>
           </Box>
           
           {showDescription && (
             <TextField
               fullWidth
               label="Description (optional)"
+              placeholder="Add a description for these files..."
               value={uploadDescription}
               onChange={(e) => setUploadDescription(e.target.value)}
               multiline
-              rows={2}
-              sx={{ mb: 2 }}
+              rows={3}
+              sx={{ mb: 3 }}
+              disabled={isUploading}
             />
           )}
           
@@ -438,6 +636,7 @@ const FileUpload = ({
                 value={uploadCategory}
                 label="Category"
                 onChange={(e) => setUploadCategory(e.target.value)}
+                disabled={isUploading}
               >
                 <MenuItem value="personal">Personal</MenuItem>
                 <MenuItem value="business">Business</MenuItem>
@@ -447,40 +646,120 @@ const FileUpload = ({
             </FormControl>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setUploadDialogOpen(false)} disabled={uploading}>
+        <DialogActions sx={{ p: 3, pt: 1 }}>
+          <Button 
+            onClick={() => setUploadDialogOpen(false)} 
+            disabled={isUploading}
+            sx={{ textTransform: 'none' }}
+          >
             Cancel
           </Button>
           <Button 
             onClick={handleUpload} 
             variant="contained" 
-            disabled={uploading}
-            startIcon={uploading ? <LinearProgress size={16} /> : <Add />}
+            disabled={isUploading}
+            startIcon={isUploading ? undefined : <Add />}
+            sx={{ 
+              textTransform: 'none',
+              minWidth: 120,
+              position: 'relative',
+              overflow: 'hidden'
+            }}
           >
-            {uploading ? 'Uploading...' : 'Upload'}
+            {isUploading ? 'Uploading...' : 'Upload Files'}
+            {isUploading && (
+              <LinearProgress 
+                sx={{ 
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 2
+                }} 
+              />
+            )}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Image Preview Dialog */}
-      <MuiDialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md">
-        <DialogTitle>Image Preview</DialogTitle>
-        <DialogContent>
-          {previewFile && previewFile.filePath && (
-            <img
-              src={`http://localhost:9000/${previewFile.filePath}`}
-              alt={previewFile.originalName}
-              style={{ maxWidth: '100%', maxHeight: '60vh', display: 'block', margin: '0 auto' }}
-            />
-          )}
-          {previewFile && !previewFile.filePath && (
-            <Typography color="error">Preview not available.</Typography>
+      <Dialog 
+        open={previewOpen} 
+        onClose={() => setPreviewOpen(false)} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 2 }
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1,
+          pb: 1 
+        }}>
+          <Visibility color="primary" />
+          Image Preview
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          {previewFile && previewFile.filePath ? (
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              minHeight: 400,
+              bgcolor: 'grey.50'
+            }}>
+              <img
+                src={`http://localhost:9000/${previewFile.filePath}`}
+                alt={previewFile.originalName}
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '70vh', 
+                  display: 'block',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                }}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+              <Typography 
+                color="error" 
+                sx={{ 
+                  display: 'none',
+                  textAlign: 'center',
+                  p: 3
+                }}
+              >
+                Preview not available
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              minHeight: 200,
+              bgcolor: 'grey.50'
+            }}>
+              <Typography color="error" variant="h6">
+                Preview not available
+              </Typography>
+            </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPreviewOpen(false)}>Close</Button>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={() => setPreviewOpen(false)}
+            variant="outlined"
+            sx={{ textTransform: 'none' }}
+          >
+            Close
+          </Button>
         </DialogActions>
-      </MuiDialog>
+      </Dialog>
     </Box>
   );
 };

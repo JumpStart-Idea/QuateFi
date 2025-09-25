@@ -517,24 +517,33 @@ const Settings = () => {
     }
     
     try {
-      // Simulate progress for each file
-      files.forEach((file, index) => {
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += Math.random() * 20;
-          if (progress >= 100) {
-            progress = 100;
-            clearInterval(interval);
-          }
-          progressCallback(file.name, Math.round(progress));
-        }, 200);
+      // Simulate progress for each file with more realistic timing
+      const progressPromises = files.map((file, index) => {
+        return new Promise((resolve) => {
+          let progress = 0;
+          const interval = setInterval(() => {
+            const increment = Math.random() * 20 + 10; // 10-30% increments
+            progress += increment;
+            if (progress >= 100) {
+              progress = 100;
+              clearInterval(interval);
+              resolve();
+            }
+            progressCallback(file.name, Math.round(progress));
+          }, 200 + Math.random() * 300); // 200-500ms intervals
+        });
       });
       
+      // Wait for progress simulation to complete
+      await Promise.all(progressPromises);
+      
+      // Make the actual API call
       await uploadDocuments({ userId, files, description, category }).unwrap();
       setSuccessMessage(`${files.length} document(s) uploaded successfully!`);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
+      console.error('Upload error:', error);
       throw new Error(error.data?.message || "Failed to upload documents");
     }
   };
